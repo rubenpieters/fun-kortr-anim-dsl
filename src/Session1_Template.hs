@@ -47,6 +47,11 @@ newtype To = To Float
 
 data Ops obj a where
   Basic :: Duration -> Traversal' obj Float -> To -> Ops obj ()
+  -- NOTE: Defining extra operations, remove and try to implement them as exercise
+  Get :: Lens' obj x -> Ops obj x
+  Set :: Traversal' obj x -> x -> Ops obj ()
+  Create :: (obj -> (obj, Int)) -> Ops obj Int
+  Delete :: (Int -> obj -> obj) -> Int -> Ops obj ()
 
 instance Show (Ops obj a) where
   show (Basic duration lens target) = "Basic (" ++ show duration ++ ") (..) (" ++ show target ++ ")"
@@ -105,6 +110,20 @@ par l = Par l (\_ -> Return ())
 basic :: Duration -> Traversal' obj Float -> To -> Dsl (Ops obj) ()
 basic duration traversal to = Bind (Basic duration traversal to) (\_ -> Return ())
 
+-- NOTE: Helper functions extra operations
+
+get :: Lens' obj x -> Dsl (Ops obj) x
+get lens = Bind (Get lens) (\x -> Return x)
+
+set :: Traversal' obj x -> x -> Dsl (Ops obj) ()
+set traversal x = Bind (Set traversal x) (\_ -> Return ())
+
+create :: (obj -> (obj, Int)) -> Dsl (Ops obj) Int
+create f = Bind (Create f) (\i -> Return i)
+
+delete :: (Int -> obj -> obj) -> Int -> Dsl (Ops obj) ()
+delete f i = Bind (Delete f i) (\_ -> Return ())
+
 -- redo examples
 
 u2 :: Dsl (Ops XY) ()
@@ -137,6 +156,19 @@ applyOp obj t (Basic (For duration) traversal (To target)) = let
     then Left (Basic (For newDuration) traversal (To target))
     else Right ()
   in (newObj, result)
+  -- NOTE: Running extra operations, remove and try to implement them as exercise
+applyOp obj t (Get lens) = let
+  value = obj ^. lens
+  in (obj, Right value)
+applyOp obj t (Set traversal value) = let
+  newObj = obj & traversal .~ value
+  in (newObj, Right ())
+applyOp obj t (Create create) = let
+  (newObj, newIndex) = create obj
+  in (newObj, Right newIndex)
+applyOp obj t (Delete delete index) = let
+  newObj = delete index obj
+  in (newObj, Right ())
 
 updateValue ::
   Float -> -- time delta
