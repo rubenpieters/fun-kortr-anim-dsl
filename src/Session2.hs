@@ -2,7 +2,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Session2_Template where
+module Session2 where
 
 import Session1_Template
 

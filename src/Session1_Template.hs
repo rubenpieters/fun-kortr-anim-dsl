@@ -11,7 +11,7 @@ import Control.Monad (liftM, ap)
 import Lens.Micro
 
 -- zoom spacemacs: SPC z x (shift)+
--- zoom shell: CTRL (shift)+
+-- zoom shell: CTRL-(shift)+
 
 -------------------------------
 -- define operation data type
