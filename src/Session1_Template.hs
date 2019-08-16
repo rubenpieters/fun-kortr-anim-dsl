@@ -52,6 +52,7 @@ data Ops obj a where
   Set :: Traversal' obj x -> x -> Ops obj ()
   Create :: (obj -> (obj, Int)) -> Ops obj Int
   Delete :: (Int -> obj -> obj) -> Int -> Ops obj ()
+  Delay :: Duration -> Ops obj ()
 
 instance Show (Ops obj a) where
   show (Basic duration lens target) = "Basic (" ++ show duration ++ ") (..) (" ++ show target ++ ")"
@@ -124,6 +125,9 @@ create f = Bind (Create f) (\i -> Return i)
 delete :: (Int -> obj -> obj) -> Int -> Dsl (Ops obj) ()
 delete f i = Bind (Delete f i) (\_ -> Return ())
 
+delay :: Duration -> Dsl (Ops obj) ()
+delay duration = Bind (Delay duration) (\_ -> Return ())
+
 -- redo examples
 
 u2 :: Dsl (Ops XY) ()
@@ -169,6 +173,12 @@ applyOp obj t (Create create) = let
 applyOp obj t (Delete delete index) = let
   newObj = delete index obj
   in (newObj, Right ())
+applyOp obj t (Delay (For duration)) = let
+  newDuration = duration - t
+  result = if newDuration > 0
+    then Left (Delay (For newDuration))
+    else Right ()
+  in (obj, result)
 
 updateValue ::
   Float -> -- time delta
