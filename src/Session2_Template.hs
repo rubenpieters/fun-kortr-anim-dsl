@@ -4,10 +4,12 @@
 
 module Session2_Template where
 
+import Prelude hiding (seq)
+
 import Session1_Template
 
-import Lens.Micro
-import Lens.Micro.TH
+import Lens.Micro hiding (set)
+import Lens.Micro.TH hiding (set)
 
 import Graphics.Gloss hiding (scale, color)
 import Graphics.Gloss.Interface.Pure.Game hiding (scale, color)
@@ -37,7 +39,7 @@ makeLenses ''Sprite
 data World
   = World
   { _sprites :: [Sprite]
-  , _animations :: [Dsl (Ops World) ()]
+  , _animations :: [Animation (Operation World) ()]
   }
 
 makeLenses ''World
@@ -62,18 +64,40 @@ drawSprite Sprite{ _x, _y, _alpha, _color, _scale, _rotation, _picture } = let
 draw :: World -> Picture
 draw World{ _sprites } = Pictures (_sprites & map drawSprite)
 
-handleInput1 :: Event -> World -> World
-handleInput1 e w = w
+handleInput :: Event -> World -> World
+handleInput (EventKey (Char 'x') Down _ _) w =
+  w & animations %~ \l -> fadeOut : l
+handleInput (EventKey (Char 'c') Down _ _) w =
+  w & animations %~ \l -> (seq [upAnim, downAnim]) : l
+handleInput (EventKey (Char 'v') Down _ _) w =
+  w & animations %~ \l -> beat : l
+handleInput (EventKey (Char 'r') Down _ _) w =
+  w & animations %~ \l -> reset : l
+handleInput _ w = w
 
-update1 :: Float -> World -> World
-update1 t w = w
+update :: Float -> World -> World
+update t w = let
+  (newWorld, newAnimations) = execOps w t (w ^. animations)
+  cleanedAnims = cleanAnims newAnimations
+  in newWorld & animations .~ cleanedAnims
 
-sprite1 :: Sprite
-sprite1 = let
-  pic = Circle 50
+-- main
+
+main :: IO ()
+main = let
+  window = InWindow "animation-dsl" (400, 400) (50, 50)
+  in play window black 60 initialWorld draw handleInput update
+
+-----------
+-- config
+-----------
+
+circleSprite :: Sprite
+circleSprite = let
+  pic = ThickCircle 50 3
   in Sprite
-    { _x = 10
-    , _y = 10
+    { _x = 0
+    , _y = 0
     , _alpha = 1
     , _color = (0.8, 0.1, 0.2)
     , _scale = 1
@@ -81,124 +105,52 @@ sprite1 = let
     , _picture = pic
     }
 
-initialWorld1 :: World
-initialWorld1 = World
-  { _sprites = [sprite1]
+barSprite :: Sprite
+barSprite = let
+  pic = Polygon [(-25, -25), (-25, 25), (25, 25), (25, -25)]
+  in Sprite
+    { _x = 0
+    , _y = 0
+    , _alpha = 1
+    , _color = (0.8, 0.1, 0.2)
+    , _scale = 1
+    , _rotation = 0
+    , _picture = pic
+    }
+
+initialWorld :: World
+initialWorld = World
+  { _sprites = [circleSprite]
   , _animations = []
   }
 
-main1 :: IO ()
-main1 = let
-  window = InWindow "animation-dsl" (400, 400) (50, 50)
-  in play window black 60 initialWorld1 draw handleInput1 update1
+-- animation definitions
 
------------
--- step 2
------------
+upAnim :: Animation (Operation World) ()
+upAnim = basic (For 2) (sprites . atIndex 0 . y) (To 100)
 
--- define helper functions
+downAnim :: Animation (Operation World) ()
+downAnim = basic (For 2) (sprites . atIndex 0 . y) (To 0)
 
-cleanAnims :: [Dsl (Ops obj) a] -> [Dsl (Ops obj) a]
-cleanAnims l = let
-  f (Return _) = False
-  f _ = True
-  in filter f l
+fadeOut :: Animation (Operation World) ()
+fadeOut = let
+  fadeScale = basic (For 2) (sprites . atIndex 0 . scale) (To 1.5)
+  fadeAlpha = basic (For 2) (sprites . atIndex 0 . alpha) (To 0)
+  in par [fadeScale, fadeAlpha]
+
+beat :: Animation (Operation World) ()
+beat = seq
+  [ basic (For 0.05) (sprites . atIndex 0 . scale) (To 2)
+  , basic (For 0.3) (sprites . atIndex 0 . scale) (To 1)
+  ]
+
+reset :: Animation (Operation World) ()
+reset = par
+  [ set (sprites . atIndex 0 . scale) 1
+  , set (sprites . atIndex 0 . x) 0
+  , set (sprites . atIndex 0 . y) 0
+  , set (sprites . atIndex 0 . alpha) 1
+  ]
 
 atIndex :: Int -> Lens' [a] a
 atIndex i = lens (!! i) (\s b -> take i s ++ b : drop (i+1) s)
-
--- next step
-
-handleInput2 :: Event -> World -> World
-handleInput2 e w = w
-
-update2 :: Float -> World -> World
-update2 t w = let
-  (newWorld, newOps) = applyOps w t (w ^. animations)
-  cleanedOps = cleanAnims newOps
-  in newWorld & animations .~ cleanedOps
-
-animation2 :: Dsl (Ops World) ()
-animation2 = do
-  basic (For 2) (sprites . atIndex 0 . scale) (To 2)
-  basic (For 2) (sprites . atIndex 0 . scale) (To 1)
-
-initialWorld2 :: World
-initialWorld2 = World
-  { _sprites = [sprite1]
-  , _animations = [animation2]
-  }
-
-main2 :: IO ()
-main2 = let
-  window = InWindow "animation-dsl" (400, 400) (50, 50)
-  in play window black 60 initialWorld2 draw handleInput2 update2
-
------------
--- step 3
------------
-
-handleInput3 :: Event -> World -> World
-handleInput3 e w = w
-
-update3 :: Float -> World -> World
-update3 t w = let
-  (newWorld, newOps) = applyOps w t (w ^. animations)
-  cleanedOps = cleanAnims newOps
-  in newWorld & animations .~ cleanedOps
-
-animation3 :: Dsl (Ops World) ()
-animation3 = par
-  [ basic (For 2) (sprites . atIndex 0 . x) (To (-40))
-  , basic (For 2) (sprites . atIndex 0 . y) (To (-40))
-  , basic (For 2) (sprites . atIndex 0 . scale) (To 0)
-  , basic (For 2) (sprites . atIndex 0 . alpha) (To 0)
-  , basic (For 2) (sprites . atIndex 1 . x) (To (60))
-  , basic (For 2) (sprites . atIndex 1 . y) (To (-40))
-  , basic (For 2) (sprites . atIndex 1 . scale) (To 0)
-  , basic (For 2) (sprites . atIndex 1 . alpha) (To 0)
-  , basic (For 2) (sprites . atIndex 2 . x) (To (-40))
-  , basic (For 2) (sprites . atIndex 2 . y) (To (60))
-  , basic (For 2) (sprites . atIndex 2 . scale) (To 0)
-  , basic (For 2) (sprites . atIndex 2 . alpha) (To 0)
-  , basic (For 2) (sprites . atIndex 3 . x) (To (60))
-  , basic (For 2) (sprites . atIndex 3 . y) (To (60))
-  , basic (For 2) (sprites . atIndex 3 . scale) (To 0)
-  , basic (For 2) (sprites . atIndex 3 . alpha) (To 0)
-  ]
-
-initialWorld3 :: World
-initialWorld3 = World
-  { _sprites = [sprite1, sprite1, sprite1, sprite1]
-  , _animations = [animation3]
-  }
-
-main3 :: IO ()
-main3 = let
-  window = InWindow "animation-dsl" (400, 400) (50, 50)
-  in play window black 60 initialWorld3 draw handleInput3 update3
-
------------
--- step 4
------------
-
-handleInput4 :: Event -> World -> World
-handleInput4 (EventKey (Char 'x') Down _ _) w = w & animations %~ \x -> animation3 : x
-handleInput4 e w = w
-
-initialWorld4 :: World
-initialWorld4 = World
-  { _sprites = [sprite1, sprite1, sprite1, sprite1]
-  , _animations = []
-  }
-
-main4 :: IO ()
-main4 = let
-  window = InWindow "animation-dsl" (400, 400) (50, 50)
-  in play window black 60 initialWorld4 draw handleInput4 update3
-
-
--------------
-
-main :: IO ()
-main = main4

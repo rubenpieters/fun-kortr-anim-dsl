@@ -18,6 +18,8 @@ import Graphics.Gloss.Interface.Pure.Game hiding (scale, color)
 -- define data types
 ----------------------
 
+{-
+
 type RGB = (Float, Float, Float)
 
 data Sprite
@@ -126,3 +128,4 @@ cleanAnims l = let
 atIndex :: Int -> Lens' [a] a
 atIndex i = lens (!! i) (\s b -> take i s ++ b : drop (i+1) s)
 
+-}

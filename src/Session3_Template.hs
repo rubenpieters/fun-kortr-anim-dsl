@@ -31,7 +31,7 @@ data Sprite
   , _rotation :: Float
   , _picture :: Picture
   , _spriteId :: Int
-  , _animation :: [Dsl (Ops Sprite) ()]
+  , _animation :: [Animation (Operation Sprite) ()]
   }
 
 makeLenses ''Sprite
@@ -39,11 +39,11 @@ makeLenses ''Sprite
 data World
   = World
   { _bgSprites :: [Sprite]
-  , _bgAnimations :: [Dsl (Ops World) ()]
+  , _bgAnimations :: [Animation (Operation World) ()]
   , _arrowSprites :: [Sprite]
-  , _arrowAnimations :: [Dsl (Ops World) ()]
+  , _arrowAnimations :: [Animation (Operation World) ()]
   , _particleSprites :: [Sprite]
-  , _particleAnimations :: [Dsl (Ops World) ()]
+  , _particleAnimations :: [Animation (Operation World) ()]
   , _nextSpriteId :: Int
   }
 
@@ -57,7 +57,10 @@ data Direction
   deriving (Eq, Show, Enum)
 
 trianglePic :: Picture
-trianglePic = lineLoop [(0, 1), (1, -1), (-1, -1)]
+trianglePic = Polygon [(0, 1), (1, -1), (-1, -1)]
+
+triangleWire :: Picture
+triangleWire = lineLoop [(0, 1), (1, -1), (-1, -1)]
 
 columnPic :: Direction -> Picture
 columnPic dir =
@@ -73,6 +76,7 @@ dividerPic dir =
 createArrow :: Direction -> Float -> World -> (World, Int)
 createArrow dir y w@(World {_arrowSprites, _nextSpriteId}) = let
   newIndex = _nextSpriteId
+  -- EX: set scale to 25, then move to 20 in animation
   arrow = Sprite (directionX dir) y 1 (1, 1, 1) 25 (directionRot dir) trianglePic newIndex [arrowTrajectory]
   newWorld = w { _arrowSprites = arrow : _arrowSprites, _nextSpriteId = _nextSpriteId + 1 }
   in (newWorld, newIndex)
@@ -82,24 +86,26 @@ deleteArrow id w@(World {_arrowSprites}) = let
   newWorld = w { _arrowSprites = filter (\x -> x ^. spriteId /= id) _arrowSprites }
   in newWorld
 
-arrowAnim :: Direction -> Dsl (Ops World) ()
+arrowAnim :: Direction -> Animation (Operation World) ()
 arrowAnim dir = do
   i <- create (createArrow dir 175)
-  delay (For 3.55)
+  delay (For 3.52)
   delete deleteArrow i
 
-missAnim :: Dsl (Ops Sprite) ()
+-- EX
+missAnim :: Animation (Operation Sprite) ()
 missAnim = do
   set (alpha) (0)
   basic (For 0.025) (alpha) (To 1)
   basic (For 0.5) (alpha) (To 0)
 
-arrowTrajectory :: Dsl (Ops Sprite) ()
+arrowTrajectory :: Animation (Operation Sprite) ()
 arrowTrajectory = do
+  -- EX
   basic (For 0.5) (scale) (To 20)
-  basic (For 3) (y) (To (-200))
+  basic (For 3) (y) (To (-220))
 
-createMap :: [String] -> Dsl (Ops World) ()
+createMap :: [String] -> Animation (Operation World) ()
 createMap [] = delay (For 0)
 createMap (str:r) = let
   parseChar dir c =
@@ -144,7 +150,31 @@ m1 =
   , "0001"
   ]
 
-test :: Dsl (Ops World) ()
+m2 :: [String]
+m2 =
+  [ "0001"
+  , "0000"
+  , "0000"
+  , "0000"
+  , "0000"
+  , "0000"
+  , "0010"
+  , "0000"
+  , "0000"
+  , "0000"
+  , "0000"
+  , "0000"
+  , "0100"
+  , "0000"
+  , "0000"
+  , "0000"
+  , "0000"
+  , "0000"
+  , "1000"
+  ]
+
+
+test :: Animation (Operation World) ()
 test = do
   par
     [ arrowAnim DLeft
@@ -155,6 +185,10 @@ test = do
 arrowSprite :: Direction -> Float -> RGB -> Float -> Float -> Int -> Sprite
 arrowSprite dir y color alpha scale i =
   Sprite (directionX dir) y alpha color scale (directionRot dir) trianglePic i []
+
+bgArrowSprite :: Direction -> Float -> RGB -> Float -> Float -> Int -> Sprite
+bgArrowSprite dir y color alpha scale i =
+  Sprite (directionX dir) y alpha color scale (directionRot dir) triangleWire i []
 
 createParticle :: (Float, Float) -> Float -> World -> (World, Int)
 createParticle (x, y) rot w@(World {_particleSprites, _nextSpriteId}) = let
@@ -168,7 +202,9 @@ deleteParticle id w@World{_particleSprites} = let
   newWorld = w { _particleSprites = filter (\x -> x ^. spriteId /= id) _particleSprites }
   in newWorld
 
-wrongAnim :: Direction -> Dsl (Ops Sprite) ()
+
+-- EX
+wrongAnim :: Direction -> Animation (Operation Sprite) ()
 wrongAnim dir = do
   par
     [ set (x) (directionX dir)
@@ -182,16 +218,7 @@ wrongAnim dir = do
   basic (For 0.05) (x) (To (directionX dir - 3))
   basic (For 0.05) (x) (To (directionX dir + 3))
   set (color) (1, 1, 1)
-  basic (For 0.025) (x) (To (directionX dir - 3))
-
-pressAnim :: Direction -> Dsl (Ops World) ()
-pressAnim dir = do
-  i <- create (createParticle (directionX dir, -150) (directionRot dir))
-  par
-    [ basic (For 0.5) (particleSprites . paId i . alpha) (To 0)
-    , basic (For 0.5) (particleSprites . paId i . scale) (To 40)
-    ]
-  delete deleteParticle i
+  basic (For 0.025) (x) (To (directionX dir))
 
 directionX :: Direction -> Float
 directionX DLeft = -90
@@ -227,10 +254,11 @@ checkPress dir World{_arrowSprites} = let
   arrows = filter condition _arrowSprites
   in arrows
 
-fadeArrows :: [Sprite] -> Dsl (Ops World) ()
+fadeArrows :: [Sprite] -> Animation (Operation World) ()
 fadeArrows arrows = let
   fade arrow = do
     delete deleteArrow (arrow ^. spriteId)
+    -- EX
     i <- create (createParticle (arrow ^. x, arrow ^. y) (arrow ^. rotation))
     par
       [ basic (For 0.5) (particleSprites . paId i . alpha) (To 0)
@@ -248,7 +276,7 @@ checkMiss dir World{_arrowSprites} = let
   arrows = filter condition _arrowSprites
   in arrows
 
-columnAnim :: [Sprite] -> Dsl (Ops World) ()
+columnAnim :: [Sprite] -> Animation (Operation World) ()
 columnAnim sprites = let
   dirs = nub (sprites & map _rotation & map rotDirection)
   anim dir = set (bgSprites . atIndex (8 + directionIndex dir) . animation) [missAnim]
@@ -276,6 +304,8 @@ handleInput (EventKey (Char 'd') Down _ _) w = handle DLeft w
 handleInput (EventKey (Char 'f') Down _ _) w = handle DDown w
 handleInput (EventKey (Char 'j') Down _ _) w = handle DUp w
 handleInput (EventKey (Char 'k') Down _ _) w = handle DRight w
+handleInput (EventKey (Char 'x') Down _ _) w =
+  w & arrowAnimations %~ \l -> createMap m1 : l
 handleInput e w = w
 
 handle :: Direction -> World -> World
@@ -289,9 +319,9 @@ update :: Float -> World -> World
 update t w = let
   newWorld = w & arrowSprites . traverse %~ updateSprite t
   newWorld' = newWorld & bgSprites . traverse %~ updateSprite t
-  (newWorld'', newArrowOps) = applyOps newWorld' t (newWorld' ^. arrowAnimations)
-  (newWorld''', newParticleOps) = applyOps newWorld'' t (newWorld'' ^. particleAnimations)
-  (newWorld'''', newBgOps) = applyOps newWorld''' t (newWorld''' ^. bgAnimations)
+  (newWorld'', newArrowOps) = execOps newWorld' t (newWorld' ^. arrowAnimations)
+  (newWorld''', newParticleOps) = execOps newWorld'' t (newWorld'' ^. particleAnimations)
+  (newWorld'''', newBgOps) = execOps newWorld''' t (newWorld''' ^. bgAnimations)
   cleanedArrowOps = cleanAnims newArrowOps
   cleanedParticleOps = cleanAnims newParticleOps
   cleanedBgOps = cleanAnims newBgOps
@@ -303,16 +333,16 @@ update t w = let
 
 updateSprite :: Float -> Sprite -> Sprite
 updateSprite t sprite = let
-  (newSprite, newAnim) = applyOps sprite t (sprite ^. animation)
+  (newSprite, newAnim) = execOps sprite t (sprite ^. animation)
   cleanedAnims = cleanAnims newAnim
   in newSprite & animation .~ cleanedAnims
 
 initialBgSprites :: [Sprite]
 initialBgSprites =
-  [ arrowSprite DLeft (-150) (1, 1, 1) 1 20 (-1)
-  , arrowSprite DDown (-150) (1, 1, 1) 1 20 (-2)
-  , arrowSprite DUp (-150) (1, 1, 1) 1 20 (-3)
-  , arrowSprite DRight (-150) (1, 1, 1) 1 20 (-4)
+  [ bgArrowSprite DLeft (-150) (1, 1, 1) 1 20 (-1)
+  , bgArrowSprite DDown (-150) (1, 1, 1) 1 20 (-2)
+  , bgArrowSprite DUp (-150) (1, 1, 1) 1 20 (-3)
+  , bgArrowSprite DRight (-150) (1, 1, 1) 1 20 (-4)
   , Sprite 0 0 1 (0, 0, 1) 1 0 (dividerPic DLeft) (-5) []
   , Sprite 0 0 1 (0, 0, 1) 1 0 (dividerPic DDown) (-6) []
   , Sprite 0 0 1 (0, 0, 1) 1 0 (dividerPic DUp) (-7) []
@@ -328,7 +358,7 @@ initialWorld = World
   { _bgSprites = initialBgSprites
   , _bgAnimations = []
   , _arrowSprites = []
-  , _arrowAnimations = [createMap m1]
+  , _arrowAnimations = []
   , _particleSprites = []
   , _particleAnimations = []
   , _nextSpriteId = 1
@@ -336,7 +366,7 @@ initialWorld = World
 
 main :: IO ()
 main = let
-  window = InWindow "animation-dsl" (400, 400) (50, 50)
+  window = InWindow "animation-dsl" (400, 400) (100, 100)
   in play window black 60 initialWorld draw handleInput update
 
 --
@@ -353,9 +383,3 @@ paId i = let
     Just ix -> take ix l ++ x : drop (ix+1) l
     Nothing -> error ("no particle with index " ++ show i)
   in lens get set
-
-cleanAnims :: [Dsl (Ops obj) a] -> [Dsl (Ops obj) a]
-cleanAnims l = let
-  f (Return _) = False
-  f _ = True
-  in filter f l
