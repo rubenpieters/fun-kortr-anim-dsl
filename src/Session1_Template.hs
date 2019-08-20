@@ -160,10 +160,14 @@ diagonal2 = par [u2, r2]
 -- define running operations
 ------------------------------
 
+data OperationResult obj a
+  = Remainder (Operation obj a)
+  | Finished a
+
 -- the execOp function applies an operation to the given world, given a time delta
 -- it returns the new obj, and the remainder of the operation (if not finished) or the resulting value of the operation (if finished)
 
-execOp :: obj -> Float -> Operation obj a -> (obj, Either (Operation obj a) a)
+execOp :: obj -> Float -> Operation obj a -> (obj, OperationResult obj a)
 execOp obj t (Basic (For duration) traversal (To target)) = let
   -- update object
   newObj = obj & traversal %~ updateValue t duration target
@@ -171,26 +175,26 @@ execOp obj t (Basic (For duration) traversal (To target)) = let
   newDuration = duration - t
   -- create operation remainder / operation result
   result = if newDuration > 0
-    then Left (Basic (For newDuration) traversal (To target))
-    else Right ()
+    then Remainder (Basic (For newDuration) traversal (To target))
+    else Finished ()
   in (newObj, result)
 execOp obj t (Get lens) = let
   value = obj ^. lens
-  in (obj, Right value)
+  in (obj, Finished value)
 execOp obj t (Set traversal value) = let
   newObj = obj & traversal .~ value
-  in (newObj, Right ())
+  in (newObj, Finished ())
 execOp obj t (Create create) = let
   (newObj, newIndex) = create obj
-  in (newObj, Right newIndex)
+  in (newObj, Finished newIndex)
 execOp obj t (Delete delete index) = let
   newObj = delete index obj
-  in (newObj, Right ())
+  in (newObj, Finished ())
 execOp obj t (Delay (For duration)) = let
   newDuration = duration - t
   result = if newDuration > 0
-    then Left (Delay (For newDuration))
-    else Right ()
+    then Remainder (Delay (For newDuration))
+    else Finished ()
   in (obj, result)
 
 updateValue ::
@@ -228,13 +232,13 @@ execAnimation :: obj -> Float -> Animation (Operation obj) a -> (obj, Animation 
 execAnimation obj t (Bind fa k) = let
   (newObj, eResult) = execOp obj t fa
   in case eResult of
-    Right result -> (newObj, k result)
-    Left newOp -> (newObj, Bind newOp k)
+    Finished result -> (newObj, k result)
+    Remainder newOp -> (newObj, Bind newOp k)
 execAnimation obj t (Par fs k) = let
   (newObj, newOperation) = execOps obj t fs
   in case returnValues newOperation of
-    Right l -> (newObj, k l)
-    Left () -> (newObj, Par newOperation k)
+    ResultsAvailable l -> (newObj, k l)
+    NotFinishedYet -> (newObj, Par newOperation k)
 execAnimation obj t (Return a) = (obj, Return a)
 
 execOps :: obj -> Float -> [Animation (Operation obj) a] -> (obj, [Animation (Operation obj) a])
@@ -246,12 +250,16 @@ execOps obj t (op:r) = let
   (obj'', ops) = execOps obj' t r
   in (obj'', op' : ops)
 
-returnValues :: [Animation f a] -> Either () [a]
-returnValues [] = Right []
-returnValues ((Return a):r) = do
-  l <- returnValues r
-  return (a : l)
-returnValues _ = Left ()
+data ReturnValues a
+  = NotFinishedYet
+  | ResultsAvailable [a]
+
+returnValues :: [Animation f a] -> ReturnValues a
+returnValues [] = ResultsAvailable []
+returnValues ((Return a):r) = case returnValues r of
+  NotFinishedYet -> NotFinishedYet
+  ResultsAvailable l -> ResultsAvailable (a : l)
+returnValues _ = NotFinishedYet
 
 -- examples execAnimation
 
