@@ -27,6 +27,6 @@ Optionally, you can press X to play. Use the DFJK keys when the arrows move over
 
 ## Possible issues
 
-If you encounter an issue, check whether your `stack` version is up to date usion `stack upgrade`.
+If you encounter an issue, check whether your `stack` version is up to date with `stack upgrade`.
 
 On Ubuntu: you might need to install `freeglut3` and `freeglut3-dev` using `apt`.
