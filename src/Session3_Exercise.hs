@@ -233,8 +233,7 @@ bgArrowSprite dir y color alpha scale i =
 createArrow :: Direction -> Float -> World -> (World, Int)
 createArrow dir y w@(World {_arrowSprites, _nextSpriteId}) = let
   newIndex = _nextSpriteId
-  -- EX: set scale to 25, then move to 20 in animation
-  arrow = Sprite (directionX dir) y 1 (1, 1, 1) 25 (directionRot dir) trianglePic newIndex [arrowTrajectory]
+  arrow = Sprite (directionX dir) y 1 (1, 1, 1) 20 (directionRot dir) trianglePic newIndex [arrowTrajectory]
   newWorld = w { _arrowSprites = arrow : _arrowSprites, _nextSpriteId = _nextSpriteId + 1 }
   in (newWorld, newIndex)
 
@@ -263,47 +262,26 @@ arrowAnim dir = do
   delay (For 3.52)
   delete deleteArrow i
 
--- EX
 missAnim :: Animation (Operation Sprite) ()
-missAnim = do
-  set (alpha) (0)
-  basic (For 0.025) (alpha) (To 1)
-  basic (For 0.5) (alpha) (To 0)
+missAnim =
+  -- light up bg
+  return ()
 
 arrowTrajectory :: Animation (Operation Sprite) ()
 arrowTrajectory = do
-  -- EX
-  basic (For 0.5) (scale) (To 20)
+  -- lower scale
   basic (For 3) (y) (To (-220))
 
--- EX
 wrongAnim :: Direction -> Animation (Operation Sprite) ()
-wrongAnim dir = do
-  par
-    [ set (x) (directionX dir)
-    , set (color) (1, 1, 1)
-    ]
-  basic (For 0.025) (x) (To (directionX dir - 3))
-  set (color) (1, 0, 0)
-  basic (For 0.05) (x) (To (directionX dir + 3))
-  basic (For 0.05) (x) (To (directionX dir - 3))
-  basic (For 0.05) (x) (To (directionX dir + 3))
-  basic (For 0.05) (x) (To (directionX dir - 3))
-  basic (For 0.05) (x) (To (directionX dir + 3))
-  set (color) (1, 1, 1)
-  basic (For 0.025) (x) (To (directionX dir))
+wrongAnim dir =
+  -- move arrow back and forth
+  return ()
 
 fadeArrows :: [Sprite] -> Animation (Operation World) ()
 fadeArrows arrows = let
   fade arrow = do
     delete deleteArrow (arrow ^. spriteId)
-    -- EX
-    i <- create (createParticle (arrow ^. x, arrow ^. y) (arrow ^. rotation))
-    par
-      [ basic (For 0.5) (particleSprites . withSpriteId i . alpha) (To 0)
-      , basic (For 0.5) (particleSprites . withSpriteId i . scale) (To 40)
-      ]
-    delete deleteParticle i
+    -- create arrow particle
   in par (map fade arrows)
 
 columnAnim :: [Sprite] -> Animation (Operation World) ()

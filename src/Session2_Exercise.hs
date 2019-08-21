@@ -46,17 +46,34 @@ makeLenses ''World
 ---------------------------
 
 drawSprite :: Sprite -> Picture
-drawSprite Sprite{ _x, _y, _alpha, _color, _scale, _rotation, _picture } =
-  error "not implemented"
+drawSprite Sprite{ _x, _y, _alpha, _color, _scale, _rotation, _picture } = let
+  (r, g, b) = _color
+  in
+  _picture &
+  Color (makeColor r g b _alpha) &
+  Scale _scale _scale &
+  Rotate _rotation &
+  Translate _x _y
 
 draw :: World -> Picture
-draw World{ _sprites } = error "not implemented"
+draw World{ _sprites } = Pictures (_sprites & map drawSprite)
 
 handleInput :: Event -> World -> World
-handleInput w = error "not implemented"
+handleInput (EventKey (Char 'x') Down _ _) w =
+  w & animations %~ \l -> fadeOut : l
+handleInput (EventKey (Char 'c') Down _ _) w =
+  w & animations %~ \l -> (seq [upAnim, downAnim]) : l
+handleInput (EventKey (Char 'v') Down _ _) w =
+  w & animations %~ \l -> beat : l
+handleInput (EventKey (Char 'r') Down _ _) w =
+  w & animations %~ \l -> reset : l
+handleInput _ w = w
 
 update :: Float -> World -> World
-update t w = error "not implemented"
+update t w = let
+  (newWorld, newAnimations) = execOps w t (w ^. animations)
+  cleanedAnims = cleanAnims newAnimations
+  in newWorld & animations .~ cleanedAnims
 
 -- main
 
