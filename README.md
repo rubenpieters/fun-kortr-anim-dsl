@@ -1,4 +1,4 @@
-![](https://ci.appveyor.com/api/projects/status/rubenpieters/fun-kortr-anim-dsl/branch/master?svg=true) ![](https://api.travis-ci.org/rubenpieters/fun-kortr-anim-dsl.svg?branch=master)
+![](https://ci.appveyor.com/api/projects/status/w8wodvfpgrv5otmw/branch/master?svg=true) ![](https://api.travis-ci.org/rubenpieters/fun-kortr-anim-dsl.svg?branch=master)
 
 # fun-kortr-anim-dsl
 
