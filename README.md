@@ -1,3 +1,5 @@
+![](https://ci.appveyor.com/api/projects/status/rubenpieters/fun-kortr-anim-dsl/branch/master?svg=true) ![](https://api.travis-ci.org/rubenpieters/fun-kortr-anim-dsl.svg?branch=master)
+
 # fun-kortr-anim-dsl
 
 Template code for Functional Kortrijk meetup "Animation DSL with Effect Handlers".
