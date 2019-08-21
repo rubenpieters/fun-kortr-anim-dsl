@@ -11,6 +11,13 @@ cache:
   directories:
   - $HOME/.stack
 
+# Ensure necessary system libraries are present
+addons:
+  apt:
+    packages:
+      - freeglut3
+      - freeglut3-dev
+
 before_install:
 # Download and unpack the stack executable
 - mkdir -p ~/.local/bin
