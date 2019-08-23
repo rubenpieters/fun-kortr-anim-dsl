@@ -69,8 +69,6 @@ diagonal1 = error "not implemented"
 
 -- monad instance
 
--- import Control.Monad (liftM, ap)
-
 instance Functor (Animation f) where
   fmap = liftM
 

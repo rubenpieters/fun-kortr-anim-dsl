@@ -112,6 +112,8 @@ handleInput (EventKey (Char 'j') Down _ _) w = handle DUp w
 handleInput (EventKey (Char 'k') Down _ _) w = handle DRight w
 handleInput (EventKey (Char 'x') Down _ _) w =
   w & arrowAnimations %~ \l -> createMap m1 : l
+handleInput (EventKey (SpecialKey KeySpace) Down _ _) w =
+  w & particleAnimations %~ \l -> spaceParticle : l
 handleInput e w = w
 
 handle :: Direction -> World -> World
@@ -242,6 +244,14 @@ deleteArrow id w@(World {_arrowSprites}) = let
   newWorld = w { _arrowSprites = filter (\x -> x ^. spriteId /= id) _arrowSprites }
   in newWorld
 
+-- create/delete example
+createSpaceParticle :: (Float, Float) -> World -> (World, Int)
+createSpaceParticle (x, y) w@(World {_particleSprites, _nextSpriteId}) = let
+  newIndex = _nextSpriteId
+  particle = Sprite x y 1 (1, 1, 1) 1 0 (circleSolid 40) newIndex []
+  newWorld = w { _particleSprites = particle : _particleSprites, _nextSpriteId = _nextSpriteId + 1 }
+  in (newWorld, newIndex)
+
 createParticle :: (Float, Float) -> Float -> World -> (World, Int)
 createParticle (x, y) rot w@(World {_particleSprites, _nextSpriteId}) = let
   newIndex = _nextSpriteId
@@ -255,6 +265,9 @@ deleteParticle id w@World{_particleSprites} = let
   in newWorld
 
 -- animation definitions
+
+spaceParticle :: Animation (Operation World) ()
+spaceParticle = error "undefined"
 
 arrowAnim :: Direction -> Animation (Operation World) ()
 arrowAnim dir = do
