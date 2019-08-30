@@ -2,7 +2,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Session2 where
+module Session2_Exercise where
 
 import Prelude hiding (seq)
 
